@@ -1,0 +1,137 @@
+#!/usr/bin/env bash
+#
+# claude-sync: Sync Claude Code configuration between machines.
+#
+# Usage:
+#   claude-sync <command> [options]
+#
+# Cloud sync (git-backed, cross-platform):
+#   cloud-init, cloud-push, cloud-pull, cloud-status, cloud-bootstrap
+#
+# SSH sync (direct machine-to-machine):
+#   push, pull, diff, status, bootstrap, verify
+#
+# Portable export/import:
+#   export, import
+
+set -euo pipefail
+
+# ── Resolve script location (follow symlinks) ────────────────────
+SCRIPT_PATH="${BASH_SOURCE[0]}"
+while [ -L "$SCRIPT_PATH" ]; do
+  SCRIPT_DIR="$(cd -P "$(dirname "$SCRIPT_PATH")" && pwd)"
+  SCRIPT_PATH="$(readlink "$SCRIPT_PATH")"
+  [[ "$SCRIPT_PATH" != /* ]] && SCRIPT_PATH="$SCRIPT_DIR/$SCRIPT_PATH"
+done
+SCRIPT_DIR="$(cd -P "$(dirname "$SCRIPT_PATH")" && pwd)"
+
+# ── Configuration ─────────────────────────────────────────────────
+REMOTE_HOST="natefikru@18.208.4.227"
+REMOTE_SSH_KEY="$HOME/.ssh/id_rsa"
+SSH_OPTS="-A -i $REMOTE_SSH_KEY -o ConnectTimeout=10 -o StrictHostKeyChecking=accept-new"
+
+LOCAL_CLAUDE_DIR="$HOME/.claude"
+LOCAL_CLAUDE_JSON="$HOME/.claude.json"
+LOCAL_HOME="$HOME"
+REMOTE_HOME="/home/natefikru"
+REMOTE_CLAUDE_DIR="$REMOTE_HOME/.claude"
+REMOTE_CLAUDE_JSON="$REMOTE_HOME/.claude.json"
+
+SYNC_PROJECTS=true
+
+# Additional dotfile directories to sync (outside ~/.claude/)
+EXTRA_SYNC_DIRS=(
+  ".claude-mem"
+  ".claude-worktrees"
+  ".din-admin-cli"
+)
+
+# Specific items from ~/.config/ to sync
+CONFIG_SYNC_ITEMS=(
+  "ccstatusline"
+  "gws"
+)
+
+# Project CLAUDE.md files to sync (empty: din projects excluded, they're tracked in git)
+PROJECT_CLAUDE_MDS=()
+
+# npm global packages for bootstrap
+NPM_GLOBAL_PACKAGES=(
+  "agent-browser"
+  "@googleworkspace/cli"
+  "@playwright/mcp"
+  "ccstatusline"
+  "vercel"
+  "typescript"
+  "typescript-language-server"
+  "pyright"
+  "@vtsls/language-server"
+)
+
+# Rsync excludes
+RSYNC_EXCLUDES=(
+  ".DS_Store"
+  "*.lock"
+)
+
+CLAUDE_MEM_EXCLUDES=(
+  ".DS_Store"
+  "*.lock"
+  "claude-mem.db"
+  "claude-mem.db-shm"
+  "claude-mem.db-wal"
+  "vector-db/"
+  "logs/"
+)
+
+# ── Source modules ────────────────────────────────────────────────
+source "$SCRIPT_DIR/lib/common.sh"
+source "$SCRIPT_DIR/lib/ssh.sh"
+source "$SCRIPT_DIR/lib/export.sh"
+source "$SCRIPT_DIR/lib/cloud.sh"
+
+# ── Dispatch ──────────────────────────────────────────────────────
+case "${1:-push}" in
+  push)      require_ssh; cmd_push ;;
+  pull)      require_ssh; cmd_pull ;;
+  diff)      require_ssh; cmd_diff ;;
+  status)    require_ssh; cmd_status ;;
+  bootstrap) require_ssh; cmd_bootstrap ;;
+  verify)    require_ssh; cmd_verify ;;
+  export)    shift; cmd_export "$@" ;;
+  import)    shift; cmd_import "$@" ;;
+  cloud-init)      shift; cmd_cloud_init "$@" ;;
+  cloud-push)      cmd_cloud_push ;;
+  cloud-pull)      cmd_cloud_pull ;;
+  cloud-status)    cmd_cloud_status ;;
+  cloud-bootstrap) shift; cmd_cloud_bootstrap "$@" ;;
+  -h|--help|help)
+    echo "Usage: claude-sync <command> [options]"
+    echo ""
+    echo "Cloud sync (git-backed, cross-platform):"
+    echo "  cloud-init [--repo <name>]              Create private GitHub repo and initialize sync"
+    echo "  cloud-push                              Push local config changes to remote"
+    echo "  cloud-pull                              Pull remote config changes (backs up first)"
+    echo "  cloud-status                            Show sync status and drift"
+    echo "  cloud-bootstrap <url> [--force]         Set up new machine from existing repo"
+    echo "                       [--secrets-file f] Pre-populate secrets from file"
+    echo ""
+    echo "SSH sync (requires remote connection):"
+    echo "  push           Sync local config to remote (default)"
+    echo "  pull           Sync remote config to local (with confirmation)"
+    echo "  diff           Show what would change (dry-run)"
+    echo "  status         Quick comparison of key files and tools"
+    echo "  bootstrap      Install runtime deps on remote (node, bun, CLIs, plugins)"
+    echo "  verify         Verify MCP servers and plugins work on remote"
+    echo ""
+    echo "Portable export/import (no SSH needed):"
+    echo "  export [--redact-secrets]   Create portable config tarball"
+    echo "  import <tarball> [--force]  Install config from tarball"
+    ;;
+  *)
+    err "Unknown command: $1"
+    echo "Usage: claude-sync <command> [options]"
+    echo "Run 'claude-sync help' for available commands."
+    exit 1
+    ;;
+esac
