@@ -427,9 +427,8 @@ copy_claude_config() {
       count=$((count + 1))
     done
 
-    # ~/.config/ items (excluding gws for export)
+    # ~/.config/ items (SSH and export only; cloud mode doesn't pass --with-extras)
     for item in "${CONFIG_SYNC_ITEMS[@]}"; do
-      [ "$item" = "gws" ] && continue
       local src="$HOME/.config/$item"
       [ -e "$src" ] || continue
       mkdir -p "$dst_dir/config"
