@@ -157,7 +157,7 @@ cmd_push() {
   # Sync ~/.claude.json with smart merge
   if [ -f "$LOCAL_CLAUDE_JSON" ]; then
     info "Syncing .claude.json (MCP config, with path transform)"
-    local tmp_local tmp_remote tmp_merged
+    local tmp_local tmp_remote
     tmp_local=$(mktemp)
     tmp_remote=$(mktemp)
 

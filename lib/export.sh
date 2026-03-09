@@ -84,8 +84,8 @@ cmd_export() {
   [ "$redact_secrets_flag" = true ] && secrets_redacted="True"
 
   local secret_keys_json npm_pkgs_json
-  secret_keys_json=$(printf '%s\n' "${SECRET_PATHS[@]}" | python3 -c "import sys,json; print(json.dumps([l.strip() for l in sys.stdin if l.strip()]))")
-  npm_pkgs_json=$(printf '%s\n' "${NPM_GLOBAL_PACKAGES[@]}" | python3 -c "import sys,json; print(json.dumps([l.strip() for l in sys.stdin if l.strip()]))")
+  secret_keys_json=$(printf '%s\n' ${SECRET_PATHS[@]+"${SECRET_PATHS[@]}"} | python3 -c "import sys,json; print(json.dumps([l.strip() for l in sys.stdin if l.strip()]))")
+  npm_pkgs_json=$(printf '%s\n' ${NPM_GLOBAL_PACKAGES[@]+"${NPM_GLOBAL_PACKAGES[@]}"} | python3 -c "import sys,json; print(json.dumps([l.strip() for l in sys.stdin if l.strip()]))")
 
   python3 -c "
 import json
