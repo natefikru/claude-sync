@@ -446,7 +446,7 @@ copy_claude_config() {
     fi
 
     # Project CLAUDE.md files
-    for project in "${PROJECT_CLAUDE_MDS[@]}"; do
+    for project in ${PROJECT_CLAUDE_MDS[@]+"${PROJECT_CLAUDE_MDS[@]}"}; do
       local src="$HOME/$project/CLAUDE.md"
       [ -f "$src" ] || continue
       mkdir -p "$dst_dir/project-claude-mds/$project"

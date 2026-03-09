@@ -134,7 +134,14 @@ cmd_push() {
     ok "Plugin cache synced"
   fi
 
-  # Sync plugin JSON files with path transform
+  # Sync plugin JSON files (some need path transform, some are plain copies)
+  for pfile in blocklist.json config.json; do
+    if [ -f "$LOCAL_CLAUDE_DIR/plugins/$pfile" ]; then
+      info "Syncing plugins/$pfile"
+      scp $SSH_OPTS "$LOCAL_CLAUDE_DIR/plugins/$pfile" "$REMOTE_HOST:$REMOTE_CLAUDE_DIR/plugins/$pfile"
+    fi
+  done
+
   for pfile in installed_plugins.json known_marketplaces.json; do
     if [ -f "$LOCAL_CLAUDE_DIR/plugins/$pfile" ]; then
       info "Syncing $pfile (with path transform)"
@@ -245,7 +252,7 @@ cmd_push() {
 
   # Sync project CLAUDE.md files
   info "Syncing project CLAUDE.md files..."
-  for project in "${PROJECT_CLAUDE_MDS[@]}"; do
+  for project in ${PROJECT_CLAUDE_MDS[@]+"${PROJECT_CLAUDE_MDS[@]}"}; do
     local src="$HOME/$project/CLAUDE.md"
     local dst="$REMOTE_HOME/$project/CLAUDE.md"
 
@@ -413,7 +420,7 @@ cmd_diff() {
   # Project CLAUDE.md status
   echo ""
   info "Project CLAUDE.md files:"
-  for project in "${PROJECT_CLAUDE_MDS[@]}"; do
+  for project in ${PROJECT_CLAUDE_MDS[@]+"${PROJECT_CLAUDE_MDS[@]}"}; do
     local src="$HOME/$project/CLAUDE.md"
     if [ ! -f "$src" ]; then continue; fi
     if ssh_cmd "test -f $REMOTE_HOME/$project/CLAUDE.md" 2>/dev/null; then
@@ -506,7 +513,7 @@ cmd_status() {
 
   # Project CLAUDE.md files
   local proj_ok=0 proj_miss=0
-  for project in "${PROJECT_CLAUDE_MDS[@]}"; do
+  for project in ${PROJECT_CLAUDE_MDS[@]+"${PROJECT_CLAUDE_MDS[@]}"}; do
     if [ ! -f "$HOME/$project/CLAUDE.md" ]; then continue; fi
     if ssh_cmd "test -f $REMOTE_HOME/$project/CLAUDE.md" 2>/dev/null; then
       proj_ok=$((proj_ok + 1))
