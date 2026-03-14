@@ -65,10 +65,20 @@ PATH_TRANSFORM_DIRS=(
   "bin/"
 )
 
+# Additional dotfiles from ~/ to sync (standalone files, not dirs)
+EXTRA_SYNC_FILES=(
+  ".cloudflare.json"
+)
+
 # Secret paths in JSON config (dot-notation keys)
 SECRET_PATHS=(
   "mcpServers.github.env.GITHUB_PERSONAL_ACCESS_TOKEN"
   "mcpServers.slack.env.SLACK_MCP_XOXP_TOKEN"
+)
+
+# Secret paths in extra dotfiles (file:dot-notation)
+EXTRA_SECRET_PATHS=(
+  ".cloudflare.json:browser_rendering.token"
 )
 
 # Keys to sync from ~/.claude.json via smart merge
@@ -228,6 +238,101 @@ for path in SECRET_PATHS:
             key = placeholder[9:-2]
             if key in secrets:
                 obj[parts[-1]] = secrets[key]
+
+with open('$file', 'w') as f:
+    json.dump(data, f, indent=2)
+    f.write('\n')
+"
+}
+
+# ── Extra Dotfile Secret Handling ─────────────────────────────────
+
+redact_extra_secrets() {
+  # Redact secrets in extra dotfiles using EXTRA_SECRET_PATHS.
+  # Format: "filename:dot.path.to.secret"
+  local file="$1" store_file="$2" filename="$3"
+  [ -f "$file" ] || return 0
+
+  local paths=()
+  for entry in "${EXTRA_SECRET_PATHS[@]}"; do
+    local entry_file="${entry%%:*}"
+    local entry_path="${entry#*:}"
+    if [ "$entry_file" = "$filename" ]; then
+      paths+=("$entry_path")
+    fi
+  done
+  [ ${#paths[@]} -eq 0 ] && return 0
+
+  python3 -c "
+import json, os
+
+PATHS = [
+$(printf "    '%s',\n" "${paths[@]}")
+]
+
+store_file = '$store_file'
+secrets = {}
+if store_file and os.path.exists(store_file):
+    with open(store_file) as f:
+        secrets = json.load(f)
+
+with open('$file') as f:
+    data = json.load(f)
+
+for path in PATHS:
+    parts = path.split('.')
+    obj = data
+    for part in parts[:-1]:
+        if isinstance(obj, dict) and part in obj:
+            obj = obj[part]
+        else:
+            obj = None
+            break
+    if obj is not None and isinstance(obj, dict) and parts[-1] in obj:
+        val = obj[parts[-1]]
+        key = '$filename:' + path
+        if store_file and val and not str(val).startswith('{{SECRET:'):
+            secrets[key] = val
+        obj[parts[-1]] = '{{SECRET:' + key + '}}'
+
+with open('$file', 'w') as f:
+    json.dump(data, f, indent=2)
+    f.write('\n')
+
+if store_file:
+    with open(store_file, 'w') as f:
+        json.dump(secrets, f, indent=2)
+        f.write('\n')
+    os.chmod(store_file, 0o600)
+"
+}
+
+restore_extra_secrets() {
+  # Restore secrets in extra dotfiles from store_file.
+  local file="$1" store_file="$2" filename="$3"
+  [ -f "$file" ] || return 0
+  [ -f "$store_file" ] || return 0
+
+  python3 -c "
+import json
+
+with open('$store_file') as f:
+    secrets = json.load(f)
+
+with open('$file') as f:
+    data = json.load(f)
+
+def restore(obj):
+    if isinstance(obj, str) and obj.startswith('{{SECRET:'):
+        key = obj[9:-2]
+        return secrets.get(key, obj)
+    elif isinstance(obj, dict):
+        return {k: restore(v) for k, v in obj.items()}
+    elif isinstance(obj, list):
+        return [restore(v) for v in obj]
+    return obj
+
+data = restore(data)
 
 with open('$file', 'w') as f:
     json.dump(data, f, indent=2)
@@ -406,6 +511,15 @@ copy_claude_config() {
     count=$((count + 1))
   fi
 
+  # Extra dotfiles from ~/
+  for file in "${EXTRA_SYNC_FILES[@]}"; do
+    local src="$HOME/$file"
+    [ -f "$src" ] || continue
+    mkdir -p "$dst_dir/extra-dotfiles"
+    cp "$src" "$dst_dir/extra-dotfiles/$file"
+    count=$((count + 1))
+  done
+
   # ~/.config/ccstatusline/
   if [ -d "$HOME/.config/ccstatusline" ]; then
     mkdir -p "$dst_dir/config/ccstatusline"
@@ -545,6 +659,21 @@ apply_config_to_local() {
     rsync -a --delete "$src_dir/config/ccstatusline/" "$HOME/.config/ccstatusline/" 2>/dev/null || \
       cp -R "$src_dir/config/ccstatusline/"* "$HOME/.config/ccstatusline/" 2>/dev/null
     count=$((count + 1))
+  fi
+
+  # Extra dotfiles from ~/
+  if [ -d "$src_dir/extra-dotfiles" ]; then
+    for file in "${EXTRA_SYNC_FILES[@]}"; do
+      local src_file="$src_dir/extra-dotfiles/$file"
+      [ -f "$src_file" ] || continue
+      cp "$src_file" "$HOME/$file"
+      chmod 600 "$HOME/$file"
+      # Restore secrets for extra dotfiles
+      if [ -n "$secrets_file" ] && [ -f "$secrets_file" ]; then
+        restore_extra_secrets "$HOME/$file" "$secrets_file" "$file"
+      fi
+      count=$((count + 1))
+    done
   fi
 
   echo "$count"

@@ -106,6 +106,14 @@ EOF
     info "  Secrets extracted to $CLOUD_SECRETS_FILE"
   fi
 
+  # Redact extra dotfile secrets
+  if [ -d "$CLOUD_SYNC_DIR/extra-dotfiles" ]; then
+    for file in "${EXTRA_SYNC_FILES[@]}"; do
+      [ -f "$CLOUD_SYNC_DIR/extra-dotfiles/$file" ] || continue
+      redact_extra_secrets "$CLOUD_SYNC_DIR/extra-dotfiles/$file" "$CLOUD_SECRETS_FILE" "$file"
+    done
+  fi
+
   git add -A
   git commit -m "feat: initial sync of claude config" 2>/dev/null || true
   git push -u origin main 2>/dev/null || git push --set-upstream origin main
@@ -153,6 +161,14 @@ cmd_cloud_push() {
 
   if [ -f "$CLOUD_SYNC_DIR/claude/mcp_settings.json" ]; then
     redact_secrets "$CLOUD_SYNC_DIR/claude/mcp_settings.json" "$CLOUD_SECRETS_FILE"
+  fi
+
+  # Redact extra dotfile secrets
+  if [ -d "$CLOUD_SYNC_DIR/extra-dotfiles" ]; then
+    for file in "${EXTRA_SYNC_FILES[@]}"; do
+      [ -f "$CLOUD_SYNC_DIR/extra-dotfiles/$file" ] || continue
+      redact_extra_secrets "$CLOUD_SYNC_DIR/extra-dotfiles/$file" "$CLOUD_SECRETS_FILE" "$file"
+    done
   fi
 
   _cloud_write_meta "$CLOUD_SYNC_DIR"
@@ -222,6 +238,13 @@ print(meta.get('sourceHome', ''))
     redact_secrets "$CLOUD_SYNC_DIR/claude/mcp_settings.json" "$CLOUD_SECRETS_FILE"
   fi
 
+  if [ -d "$CLOUD_SYNC_DIR/extra-dotfiles" ]; then
+    for file in "${EXTRA_SYNC_FILES[@]}"; do
+      [ -f "$CLOUD_SYNC_DIR/extra-dotfiles/$file" ] || continue
+      redact_extra_secrets "$CLOUD_SYNC_DIR/extra-dotfiles/$file" "$CLOUD_SECRETS_FILE" "$file"
+    done
+  fi
+
   echo ""
   ok "Pulled and applied config ($file_count items)"
   info "  Backup at: $backup_dir"
@@ -255,6 +278,13 @@ cmd_cloud_status() {
 
   if [ -f "$tmp_dir/claude/mcp_settings.json" ]; then
     redact_secrets "$tmp_dir/claude/mcp_settings.json" 2>/dev/null
+  fi
+
+  if [ -d "$tmp_dir/extra-dotfiles" ]; then
+    for file in "${EXTRA_SYNC_FILES[@]}"; do
+      [ -f "$tmp_dir/extra-dotfiles/$file" ] || continue
+      redact_extra_secrets "$tmp_dir/extra-dotfiles/$file" "" "$file" 2>/dev/null
+    done
   fi
 
   # Compare against repo
@@ -461,6 +491,13 @@ print(meta.get('sourceHome', ''))
 
   if [ -f "$CLOUD_SYNC_DIR/claude/mcp_settings.json" ]; then
     redact_secrets "$CLOUD_SYNC_DIR/claude/mcp_settings.json" "$CLOUD_SECRETS_FILE" 2>/dev/null
+  fi
+
+  if [ -d "$CLOUD_SYNC_DIR/extra-dotfiles" ]; then
+    for file in "${EXTRA_SYNC_FILES[@]}"; do
+      [ -f "$CLOUD_SYNC_DIR/extra-dotfiles/$file" ] || continue
+      redact_extra_secrets "$CLOUD_SYNC_DIR/extra-dotfiles/$file" "$CLOUD_SECRETS_FILE" "$file" 2>/dev/null
+    done
   fi
 
   echo ""
