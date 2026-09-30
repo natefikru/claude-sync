@@ -72,7 +72,7 @@ EXTRA_SYNC_FILES=(
 
 # Secret paths in JSON config (dot-notation keys)
 SECRET_PATHS=(
-  "mcpServers.github.env.GITHUB_PERSONAL_ACCESS_TOKEN"
+  "mcpServers.github.headers.Authorization"
   "mcpServers.slack.env.SLACK_MCP_XOXP_TOKEN"
 )
 
