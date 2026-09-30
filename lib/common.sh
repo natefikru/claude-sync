@@ -550,7 +550,7 @@ copy_claude_config() {
     count=$((count + 1))
   fi
 
-  # Extra items (export/SSH only)
+  # Extra items (export only)
   if [ "$with_extras" = true ]; then
     # Extra dotfile directories
     for dir in "${EXTRA_SYNC_DIRS[@]}"; do
@@ -562,7 +562,7 @@ copy_claude_config() {
       count=$((count + 1))
     done
 
-    # ~/.config/ items (SSH and export only; cloud mode doesn't pass --with-extras)
+    # ~/.config/ items (export only; cloud mode doesn't pass --with-extras)
     for item in "${CONFIG_SYNC_ITEMS[@]}"; do
       local src="$HOME/.config/$item"
       [ -e "$src" ] || continue
