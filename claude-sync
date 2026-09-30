@@ -43,7 +43,6 @@ SYNC_PROJECTS=true
 EXTRA_SYNC_DIRS=(
   ".claude-mem"
   ".claude-worktrees"
-  ".din-admin-cli"
 )
 
 # Specific items from ~/.config/ to sync
@@ -52,7 +51,7 @@ CONFIG_SYNC_ITEMS=(
   "gws"
 )
 
-# Project CLAUDE.md files to sync (empty: din projects excluded, they're tracked in git)
+# Project CLAUDE.md files to sync (empty: project CLAUDE.md files live in their own repos)
 PROJECT_CLAUDE_MDS=()
 
 # npm global packages for bootstrap

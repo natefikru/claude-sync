@@ -52,7 +52,7 @@ rsync_dry() {
 
 require_ssh() {
   if ! ssh_cmd "echo ok" >/dev/null 2>&1; then
-    err "Cannot connect to remote. Check that din-ssh works."
+    err "Cannot connect to remote. Check SSH access to $REMOTE_HOST."
     exit 1
   fi
 }
@@ -502,15 +502,6 @@ cmd_status() {
     echo "  Remote: $remote_mcps"
   fi
 
-  # MCP server source
-  if ssh_cmd "test -d $REMOTE_HOME/mcp-servers/din-health-mcp/dist" 2>/dev/null; then
-    ok "~/mcp-servers/din-health-mcp: built on remote"
-  elif ssh_cmd "test -d $REMOTE_HOME/mcp-servers/din-health-mcp" 2>/dev/null; then
-    warn "~/mcp-servers/din-health-mcp: source present, needs 'npm install && npm run build'"
-  else
-    warn "~/mcp-servers/din-health-mcp: MISSING on remote"
-  fi
-
   # Project CLAUDE.md files
   local proj_ok=0 proj_miss=0
   for project in ${PROJECT_CLAUDE_MDS[@]+"${PROJECT_CLAUDE_MDS[@]}"}; do
@@ -618,15 +609,6 @@ NVMEOF'
 
   # Fix stale /Users/ paths in installed_plugins.json
   ssh_cmd "sed -i 's|/Users/natefikru|/home/natefikru|g' $REMOTE_CLAUDE_DIR/plugins/installed_plugins.json 2>/dev/null || true"
-
-  # Build MCP servers
-  if ssh_cmd "test -d $REMOTE_HOME/mcp-servers/din-health-mcp/src" 2>/dev/null; then
-    info "Building din-health-mcp..."
-    ssh_with_node "cd $REMOTE_HOME/mcp-servers/din-health-mcp && npm install && npm run build 2>&1" | tail -5
-    ok "din-health-mcp built"
-  else
-    warn "din-health-mcp source not found. Run 'claude-sync push' first."
-  fi
 
   # Setup gws auth
   if ssh_cmd "test -f $REMOTE_HOME/.config/gws/client_secret.json" 2>/dev/null; then
@@ -736,20 +718,6 @@ cmd_verify() {
     failures=$((failures + 1))
   fi
 
-  # din-health MCP server
-  info "Testing din-health MCP server..."
-  if ssh_cmd "test -f $REMOTE_HOME/mcp-servers/din-health-mcp/dist/index.js" 2>/dev/null; then
-    local mcp_test
-    mcp_test=$(ssh_with_node "timeout 5 node $REMOTE_HOME/mcp-servers/din-health-mcp/dist/index.js --help 2>&1 || true" | head -3)
-    if [ -n "$mcp_test" ]; then
-      ok "din-health-mcp: binary runs"
-    else
-      ok "din-health-mcp: binary exists and is executable"
-    fi
-  else
-    err "din-health-mcp: dist/index.js not found. Run 'claude-sync bootstrap'"
-    failures=$((failures + 1))
-  fi
 
   # playwright MCP
   info "Testing playwright MCP..."
