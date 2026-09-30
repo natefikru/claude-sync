@@ -101,10 +101,8 @@ EOF
   _cloud_rewrite_extra_paths "$CLOUD_SYNC_DIR" "$HOME" "{{HOME}}"
 
   # Redact secrets
-  if [ -f "$CLOUD_SYNC_DIR/claude/mcp_settings.json" ]; then
-    redact_secrets "$CLOUD_SYNC_DIR/claude/mcp_settings.json" "$CLOUD_SECRETS_FILE"
-    info "  Secrets extracted to $CLOUD_SECRETS_FILE"
-  fi
+  redact_mcp_secrets "$CLOUD_SYNC_DIR" "$CLOUD_SECRETS_FILE"
+  info "  Secrets extracted to $CLOUD_SECRETS_FILE"
 
   # Redact extra dotfile secrets
   if [ -d "$CLOUD_SYNC_DIR/extra-dotfiles" ]; then
@@ -159,9 +157,7 @@ cmd_cloud_push() {
   rewrite_all_paths "$CLOUD_SYNC_DIR/claude" "$HOME" "{{HOME}}"
   _cloud_rewrite_extra_paths "$CLOUD_SYNC_DIR" "$HOME" "{{HOME}}"
 
-  if [ -f "$CLOUD_SYNC_DIR/claude/mcp_settings.json" ]; then
-    redact_secrets "$CLOUD_SYNC_DIR/claude/mcp_settings.json" "$CLOUD_SECRETS_FILE"
-  fi
+  redact_mcp_secrets "$CLOUD_SYNC_DIR" "$CLOUD_SECRETS_FILE"
 
   # Redact extra dotfile secrets
   if [ -d "$CLOUD_SYNC_DIR/extra-dotfiles" ]; then
@@ -234,9 +230,7 @@ print(meta.get('sourceHome', ''))
   rewrite_all_paths "$CLOUD_SYNC_DIR/claude" "$HOME" "{{HOME}}"
   _cloud_rewrite_extra_paths "$CLOUD_SYNC_DIR" "$HOME" "{{HOME}}"
 
-  if [ -f "$CLOUD_SYNC_DIR/claude/mcp_settings.json" ]; then
-    redact_secrets "$CLOUD_SYNC_DIR/claude/mcp_settings.json" "$CLOUD_SECRETS_FILE"
-  fi
+  redact_mcp_secrets "$CLOUD_SYNC_DIR" "$CLOUD_SECRETS_FILE"
 
   if [ -d "$CLOUD_SYNC_DIR/extra-dotfiles" ]; then
     for file in "${EXTRA_SYNC_FILES[@]}"; do
@@ -276,9 +270,7 @@ cmd_cloud_status() {
   rewrite_all_paths "$tmp_dir/claude" "$HOME" "{{HOME}}"
   _cloud_rewrite_extra_paths "$tmp_dir" "$HOME" "{{HOME}}"
 
-  if [ -f "$tmp_dir/claude/mcp_settings.json" ]; then
-    redact_secrets "$tmp_dir/claude/mcp_settings.json" 2>/dev/null
-  fi
+  redact_mcp_secrets "$tmp_dir" 2>/dev/null
 
   if [ -d "$tmp_dir/extra-dotfiles" ]; then
     for file in "${EXTRA_SYNC_FILES[@]}"; do
@@ -489,9 +481,7 @@ print(meta.get('sourceHome', ''))
   rewrite_all_paths "$CLOUD_SYNC_DIR/claude" "$HOME" "{{HOME}}"
   _cloud_rewrite_extra_paths "$CLOUD_SYNC_DIR" "$HOME" "{{HOME}}"
 
-  if [ -f "$CLOUD_SYNC_DIR/claude/mcp_settings.json" ]; then
-    redact_secrets "$CLOUD_SYNC_DIR/claude/mcp_settings.json" "$CLOUD_SECRETS_FILE" 2>/dev/null
-  fi
+  redact_mcp_secrets "$CLOUD_SYNC_DIR" "$CLOUD_SECRETS_FILE" 2>/dev/null
 
   if [ -d "$CLOUD_SYNC_DIR/extra-dotfiles" ]; then
     for file in "${EXTRA_SYNC_FILES[@]}"; do

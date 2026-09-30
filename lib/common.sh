@@ -246,6 +246,16 @@ with open('$file', 'w') as f:
 "
 }
 
+redact_mcp_secrets() {
+  # Redact SECRET_PATHS in every synced file that carries mcpServers.
+  # claude-json/claude.json is extracted from the live ~/.claude.json, so it holds real tokens too.
+  local root="$1" store_file="${2:-}" f
+  for f in "$root/claude/mcp_settings.json" "$root/claude-json/claude.json"; do
+    [ -f "$f" ] && redact_secrets "$f" "$store_file"
+  done
+  return 0
+}
+
 # ── Extra Dotfile Secret Handling ─────────────────────────────────
 
 redact_extra_secrets() {
@@ -348,10 +358,8 @@ smart_merge_claude_json() {
   # Creates dst if it doesn't exist.
   local src="$1" dst="$2"
 
-  if [ ! -f "$dst" ]; then
-    cp "$src" "$dst"
-    return
-  fi
+  # Start from an empty object so a fresh machine still gets the placeholder check below.
+  [ -f "$dst" ] || echo '{}' > "$dst"
 
   local keys_json
   keys_json=$(printf '%s\n' "${CLAUDE_JSON_SYNC_KEYS[@]}" | python3 -c "import sys,json; print(json.dumps([l.strip() for l in sys.stdin if l.strip()]))")
@@ -366,7 +374,19 @@ with open('$dst') as f:
 
 SYNC_KEYS = json.loads('$keys_json')
 for key in SYNC_KEYS:
-    if key in source:
+    if key == 'mcpServers':
+        # Per-server merge: synced servers win by name, local-only servers survive.
+        # A server whose secret couldn't be restored never replaces a working local one.
+        merged = dict(target.get(key) or {})
+        for name, cfg in (source.get(key) or {}).items():
+            if '{{SECRET:' in json.dumps(cfg):
+                if name not in merged:
+                    print(f'  skipped mcp server {name}: missing secret in store')
+                continue
+            merged[name] = cfg
+        if merged:
+            target[key] = merged
+    elif key in source:
         target[key] = source[key]
     elif key in target:
         del target[key]
@@ -642,6 +662,7 @@ apply_config_to_local() {
     local tmp_src
     tmp_src=$(mktemp)
     cp "$claude_json_file" "$tmp_src"
+    [ -n "$secrets_file" ] && restore_secrets "$tmp_src" "$secrets_file"
     smart_merge_claude_json "$tmp_src" "$LOCAL_CLAUDE_JSON"
     rm -f "$tmp_src"
     count=$((count + 1))
