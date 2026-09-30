@@ -145,6 +145,7 @@ rewrite_all_paths() {
     local dir_path="$claude_dir/$dir_target"
     [ -d "$dir_path" ] || continue
     for f in "$dir_path"*; do
+      [ -L "$f" ] && continue
       [ -f "$f" ] && rewrite_paths "$f" "$from" "$to"
     done
   done
